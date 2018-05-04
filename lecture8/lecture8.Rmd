@@ -1,0 +1,273 @@
+---
+title: "lecture8"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Input values
+```{r}
+tmp <- c(rnorm(30,-3), rnorm(30,3))
+x <- cbind(x=tmp, y=rev(tmp))
+plot(x)
+
+```
+
+Try k-means clustering on this data
+```{r}
+km <- kmeans(x, centers = 2, nstart = 20)
+km
+```
+
+
+How many points are in each cluster
+```{r}
+km$size
+```
+
+Print cluster points
+```{r}
+km$cluster
+```
+
+Print cluster centers
+```{r}
+km$centers
+```
+
+
+
+Plot x colored by the kmeans cluster assignment
+Add cluster centers as blue points
+```{r}
+plot(x, col=km$cluster, pch=16)
+points(km$centers, col="blue", pch=15)
+
+```
+
+
+##Hierarchical clustering
+First we need to calculate point (dis)similarity as the Euclidean distance between observations
+```{r}
+dist_matrix <- dist(x)
+```
+
+The hclust() function returns a hierarchicalclustering model
+```{r}
+hc <- hclust(d = dist_matrix)
+#the print method is not so useful here
+hc
+```
+
+Try plotting it to see it better
+```{r}
+plot(hc)
+```
+
+
+Drawing a dendrogram: cutting the tree to define clusters
+```{r}
+plot(hc)
+abline(h=6, col="red")
+grps <- cutree(hc, k=2 ) 
+table(grps)
+
+#plot by defined clusters
+plot(x, col=grps)
+```
+
+
+Try different cutting
+```{r}
+plot(x, col=cutree(hc, k=6))
+```
+
+
+## Practice with HC
+```{r}
+x <- rbind(
+ matrix(rnorm(100, mean=0, sd = 0.3), ncol = 2), # c1
+ matrix(rnorm(100, mean = 1, sd = 0.3), ncol = 2), # c2
+ matrix(c(rnorm(50, mean = 1, sd = 0.3), # c3
+ rnorm(50, mean = 0, sd = 0.3)), ncol = 2)
+ )
+colnames(x) <- c("x", "y")
+
+plot(x)
+```
+
+
+Generate colors for the plot
+```{r}
+col <- as.factor( rep(c("c1","c2","c3"), each=50) ) 
+
+plot(x, col=col)
+```
+
+
+## Practicing hierarchical clustering
+
+Use the dist(), hclust(), plot() and cutree()
+functions to return 2 and 3 clusters 
+```{r}
+dist_matrix2 <- dist(x) #find distance matrix
+hc2 <- hclust(dist_matrix2) #do hierarchical clustering
+hc2
+
+plot(hc2) #print dendrogram for 
+
+abline(h=2.3, col="firebrick") #draw a line on the dendrogram
+
+grps_k3 <- cutree(hc2, k=3 ) #try to cut this into 3 clusters since
+                            #using as.factor we got 3 colors
+
+table(grps_k3) #print this info as a table
+plot(x, col=grps_k3) #visualize this as 3 clusters
+
+
+
+```
+
+Try other k
+```{r}
+grps_k2 <- cutree(hc2, k=2)
+table(grps_k2)
+plot(x, col=grps_k2)
+```
+
+
+
+
+### Practicing PCA
+
+
+Import data
+```{r}
+mydata <- read.csv('expression.csv',
+         row.names=1)
+```
+
+Transpose mydata
+```{r}
+t(mydata)
+```
+
+Let's do PCA
+
+```{r}
+pca <- prcomp(t(mydata), scale = TRUE)
+
+attributes(pca)
+```
+
+
+Print PCA to see what it looks like, not very useful
+```{r}
+pca
+```
+
+
+The returned pca$x here contains the principal
+components (PCs) for drawing our first graph.
+
+Take first 2 columns in pca$x (PC1 x PC2) to draw a 2D plot
+```{r}
+plot(pca$x[,1], pca$x[,2]) #2D plot for PCs
+
+pca.var <- pca$sdev^2 #find variance for each PC
+pca.var
+pca.var.per <- round(pca.var/sum(pca.var)*100, 1) # get percent                                                       #variance
+
+pca.var.per
+
+barplot(pca.var.per, main="Scree Plot",
+       xlab="Principal Component", ylab="Percent Variation")
+#barplot of the varianc
+#PC1 accounts for almost all of the variation in the data
+```
+
+
+Make the plot more useful
+```{r}
+colvec <- as.factor( substr(colnames(mydata), 1, 2))
+
+plot(pca$x[,1], pca$x[,2], col=colvec, pch=16,
+     xlab=paste0("PC1 (", pca.var.per[1], "%)"), 
+     #use paste0 to concentrate vectors after conv to char
+     ylab=paste0("PC2 (", pca.var.per[2], "%)"))
+
+```
+
+
+```{r}
+plot(pca$x[,1], pca$x[,2], col=colvec, pch=16,
+ xlab=paste0("PC1 (", pca.var.per[1], "%)"),
+ ylab=paste0("PC2 (", pca.var.per[2], "%)"))
+
+# use "text" instead of "identify"
+#identify points
+text(pca$x[,1], pca$x[,2], labels=colnames(mydata))
+
+#can use the identify function in console to selectively pick points to identify
+```
+
+
+
+
+## Using UK food data
+
+```{r}
+x <- read.csv("UK_foods.csv")
+dim(x) #get dimension of data
+
+head(x) #see the first parts of the data
+```
+
+```{r}
+rownames(x) <- x[,1] 
+x <- x[,-1] #removes the first column
+head(x)
+```
+
+
+```{r}
+knitr::kable(x, caption="The full UK foods data")
+```
+
+
+
+Generate summary heatmap
+```{r}
+heatmap(as.matrix(x))
+```
+
+
+Use PCA to analyze the data
+```{r}
+pca <- prcomp( t(x) ) #use prcomp to do pca
+summary(pca) #generate a summary of the pca data
+```
+
+
+Plot PCs
+```{r}
+plot(pca$x[,1], pca$x[,2], xlab="PC1", ylab="PC2", xlim=c(-270, 500))
+
+text(pca$x[,1], pca$x[,2], colnames(x))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
