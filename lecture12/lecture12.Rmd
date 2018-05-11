@@ -1,5 +1,5 @@
 ---
-title: "lecture11"
+title: "lecture12"
 output: html_document
 ---
 
@@ -35,11 +35,8 @@ Docking algorithms require atoms to have charge and atom type info, which PDB st
 We have to prep the protein and ligand files to include these info
 
 Use AutoDock Tools (ADT) to do so
-```{r}
-
-```
-
-
+Note: window's computer did not download ADT successfully
+Refer to worksheet for instructions for using ADT
 
 
 
