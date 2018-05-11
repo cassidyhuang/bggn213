@@ -58,11 +58,10 @@ Now we can load both original 1hsg.pdb and results.pdb file into VMD for visuali
 
 To assess the results quantitatively, calculate RMSD (root mean square distance) between each of the docking results and known crystal structure
 ```{r}
-res <- read.pdb("all.pdbqt", multi=T)
 ori <- read.pdb("ligand.pdbqt")
 rmsd(ori, res)
 ```
-
+The numbers represent how many Angstroms apart are the ligand and protein
 
 
 
