@@ -1,0 +1,85 @@
+---
+title: "lecture11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#import 1hsg pdb file
+library(bio3d)
+file.name <- get.pdb("1hsg")
+hiv <- read.pdb(file.name)
+```
+
+```{r}
+#get a quick summary of the pdb structure
+hiv
+```
+
+Before proceeding with docking, we have to first extract just the protein atoms
+```{r}
+prot <- trim.pdb(hiv, "protein") #get protein portion
+lig <- trim.pdb(hiv, "ligand") #get ligand portion
+
+write.pdb(prot, file="1hsg_protein.pdb") #write protein portion into pdb file
+write.pdb(lig, "1hsg_ligand.pdb") #write ligand portion into pdb file
+```
+
+
+## Use AutoDockTools to set up protein docking input
+Docking algorithms require atoms to have charge and atom type info, which PDB structures don't have
+
+We have to prep the protein and ligand files to include these info
+
+Use AutoDock Tools (ADT) to do so
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
