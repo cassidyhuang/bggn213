@@ -1,0 +1,117 @@
+---
+title: "lecture13"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1000 Genome project data
+
+Read 1000 genome data for MXL dataset
+```{r}
+genotype <- read.csv("373531-SampleGenotypes-Homo_sapiens_Variation_Sample_rs8067378.csv")
+```
+
+```{r}
+#summarize genotype data with table() function
+#view in percentage
+table(genotype[,2]) / nrow(genotype) *100
+```
+
+## Interpreting base quality scores from fastqsanger
+```{r}
+library(seqinr)
+library(gtools)
+phred <- asc( s2c("DDDDCDEDCDDDDBBDDDCC@") ) - 33
+phred 
+```
+
+
+## Population Scale Analysis for rs8067378
+```{r}
+#read file into R
+geno <- read.table("rs8067378_ENSG00000172057.6.txt")
+geno
+```
+
+```{r}
+summary(geno)
+```
+
+Get numeric values for expression values for each genotype
+```{r}
+summary( geno$exp[geno$geno =="A/A"] )
+summary( geno$exp[geno$geno =="A/G"] )
+summary( geno$exp[geno$geno =="G/G"] )
+```
+
+Generate boxplot for the results
+```{r}
+boxplot( geno$exp[geno$geno =="A/A"], 
+         geno$exp[geno$geno == "A/G"], 
+         geno$exp[geno$geno == "G/G"],
+         names = c("A/A", "A/G", "G/G"),
+         main = "Expression as a function of genotype",
+         xlab = "Genotype",
+         ylab = "Gene expression")
+```
+
+Generate box plot way#2
+```{r}
+boxplot(exp ~ geno, data=geno, notch = TRUE)
+```
+
+Use ggplot2 to make boxplots
+```{r}
+library(ggplot2)
+
+ggplot(geno, aes(geno, exp, fill=geno)) + 
+  geom_boxplot() +
+  geom_jitter(shape=16, position=position_jitter(0.2), alpha=0.4)
+
+#fill=geno adds color and legend
+#geom_jitter adds all points
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

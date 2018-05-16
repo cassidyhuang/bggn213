@@ -16,11 +16,240 @@ knitr::opts_chunk$set(echo = TRUE)
 p <- read.table("Data Export Summary.csv", sep = ",", header = T, row.names = 1)
 #set rownames to be experimental method
 
-#calculate percent of each type of molecule
+#calculate percent of each method
 percent <- (p$Total / sum(p$Total))*100
 names(percent) <- row.names(p)
 percent
 ```
+
+
+## Using Bio3D
+```{r}
+library(bio3d)
+```
+
+Read in our HIV-Pr structure
+```{r}
+pdb <- read.pdb("1hsg")
+pdb
+```
+
+Find attributes of 1hsg
+```{r}
+attributes(pdb)
+```
+
+Access individual attributes or component
+```{r}
+head(pdb$atom)
+
+#print a subset of $atom data for the first 2 atoms
+pdb$atom[1:2, c("eleno", "elety", "x", "y", "z")]
+
+#access individual $atom records
+pdb$atom$elety[1:2]
+
+#make plot
+plot.bio3d(pdb$atom$b[pdb$calpha], sse=pdb, type = "l", ylab = "B-factor")
+```
+
+```{r}
+#use str() function to get useful summary of any R object
+str(pdb$atom)
+```
+
+```{r}
+#Print summary of coordinate data in $xyz
+pdb$xyz
+
+#examine row and column dimensions
+dim(pdb$xyz)
+
+#print coordinates for the first 2 atoms
+pdb$xyz[1, atom2xyz((1:2))]
+```
+
+Atom selection
+```{r}
+# Select all C-alpha atoms (return their indices)
+ca.inds <- atom.select(pdb, "calpha")
+ca.inds
+
+# Print details of the first few selected atoms
+head (pdb$atom[ca.inds$atom, ])
+```
+
+```{r}
+# Print selected xyz coordinates
+head(pdb$xyz[, ca.inds$xyz])
+```
+
+Various individual atom properties can be used for selection
+```{r}
+# Select chain A
+a.inds <- atom.select(pdb, chain = "A")
+
+# Select C-alphas of chain A
+ca.inds <- atom.select(pdb, "calpha", chain = "A")
+
+#Combine multiple selection criteria to return their intersection
+cab.inds <- atom.select(pdb, elety=c("CA", "CB"), chain= "A", resno = 10:20)
+```
+
+```{r}
+ligand.inds <- atom.select(pdb, "ligand")
+protein.inds <- atom.select(pdb, "protein")
+```
+
+
+```{r, eval=FALSE}
+library(bio3d)
+pdb.a <- trim.pdb(pdb, inds=a.inds)
+pdb.ca <- trim.pdb(pdb, inds=ca.inds)
+pdb.ligand <- trim.pbd(pdb, inds=ligand.inds)
+pdb.protein <- trim.pdb(pdb, inds=protein.inds)
+```
+
+```{r, eval=FALSE}
+write.pdb(pdb.a, file="1hsg_a.pdb")
+write.pdb(pdb.ca, file="1hsg_ca.pdb")
+write.pbd(pdb.ligand, file="1hsg_ligand.pdb")
+write.pdb(pdb.protein, file="1hsg_protein.pdb")
+```
+
+## Aligning multiple structures
+```{r}
+#Download example PDB files
+ids <- c("1TND_B","1AGR_A","1TAG_A","1GG2_A","1KJY_A","4G5Q_A")
+files <- get.pdb(ids, split = TRUE)
+```
+
+
+```{r}
+#extract and align chains we're interested in
+pdbs <- pdbaln(files, fit = TRUE)
+pdbs
+```
+
+```{r}
+#access the first 5 rows, and 8 columns
+pdbs$ali[1:5, 1:8]
+
+#associated residue numbers
+pdbs$resno[1:5, 1:8]
+```
+
+Basic structure analysis
+```{r}
+# Calculate sequence identity
+seqidentity(pdbs)
+
+```
+
+```{r}
+# Calculate RMSB
+rmsd(pdbs)
+```
+
+
+Example application on Adk
+```{r}
+# Search and retrieve Adenylate kinase structures
+aa <- get.seq("1ake_A")
+```
+
+```{r}
+# Blast or hmmer search
+b <- blast.pdb(aa)
+```
+
+```{r}
+hits <- plot(b)
+```
+
+Blast results. Visualize and filter blast results through function plot.blast(). Here
+we proceed with only the top scoring hits (black).
+
+```{r}
+head(hits$pdb.id)
+```
+
+Use function get.pdb() and pdbslit() to fetch and parse the identified
+structures. Finally, we use pdbaln() to align the PDB structures.
+```{r}
+# Fetch PDBs
+files <- get.pdb(hits$pdb.id, path = "pdbs", split = TRUE, gzip = TRUE)
+```
+
+```{r}
+# Align structures
+pdbs <- pdbaln(files)
+```
+
+```{r}
+# Vector containing PDB codes
+ids <- basename.pdb(pdbs$id)
+
+# Draw schematic alignment
+plot(pdbs, labels=ids)
+```
+Schematic representation of alignment. Grey regions depict aligned residues, while
+white depict gap regions. The red bar at the top depict sequence conservation.
+
+
+PCA
+```{r}
+# find invariant core
+core <- core.find(pdbs)
+#finding rigid core of the proteins
+
+# superimpose all structures to core
+pdbs$xyz = pdbfit(pdbs, core)
+
+# Perform PCA
+pc.xray <- pca(pdbs)
+
+#Function rmsd() will calculate all pairwise RMSD values of the structural ensemble. This
+#facilitates clustering analysis based on the pairwise structural deviation:
+# Calculate RMSD
+rd <- rmsd(pdbs)
+
+# Structure-based clustering
+hc.rd <- hclust(dist(rd))
+grps.rd <- cutree(hc.rd, k=3)
+plot(pc.xray, 1:2, col="grey50", bg=grps.rd, pch=21, cex=1)
+```
+
+
+```{r}
+# Visualize first principal component
+pc1 <- mktrj(pc.xray, pc=1, file="pc_1.pdb")
+```
+
+
+View within R with bio3d
+```{r, eval=FALSE}
+rgl.pdbs <- view(pdbs)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
