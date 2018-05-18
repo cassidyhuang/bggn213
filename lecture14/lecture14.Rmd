@@ -1,0 +1,300 @@
+---
+title: "lecture14"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Import all data
+```{r}
+counts <- read.csv("airway_scaledcounts.csv", stringsAsFactors = FALSE)
+metadata <-  read.csv("airway_metadata.csv", stringsAsFactors = FALSE)
+```
+
+Look at the data
+```{r}
+head(counts)
+head(metadata)
+```
+
+```{r}
+colnames(counts)[-1] == metadata$id
+#does the column names equal the id's of meta data?
+```
+
+```{r}
+control <- metadata[metadata[,"dex"]=="control",]
+control
+```
+
+```{r}
+control.mean <- rowSums(counts[,control$id])/4
+#takes sums of rows and divide by number of rows to get means
+```
+
+```{r}
+names(control.mean) <- counts$ensgene
+#adds ensemble gene names back to better keep track of gene data
+head(control.mean)
+```
+
+Follow the same procedure for treated samples
+```{r}
+#get only treated samples
+treated <- metadata[metadata[,"dex"]=="treated",]
+treated
+
+#take sums of treated rows and divide by number of rows
+treated.mean <- rowSums(counts[,treated$id])/nrow(treated)
+#divide by nrow(treated) to make the code more robust
+
+names(treated.mean) <- counts$ensgene
+
+head(treated.mean)
+```
+
+Combine into new dataframe
+```{r}
+meancounts <- data.frame(control.mean, treated.mean)
+head(meancounts)
+colSums(meancounts)
+```
+
+Plot the data
+```{r}
+plot(meancounts, xlab = "log Control", ylab = "log Treated", 
+     log = "xy")
+#plot as log to see all points
+```
+
+Calculate log2foldchange
+```{r}
+meancounts$log2fc <- log2(meancounts[,"treated.mean"]/meancounts[,"control.mean"])
+head(meancounts)
+```
+See some weird results. "NaN" is not a number and -Inf results
+This is caused by genes with 0 expression
+
+```{r}
+x <- matrix(1:10, ncol=2, byrow=T)
+x
+#see example matrix
+
+#make the last number 0
+x[5,2] <- 0
+x
+
+#see which number in the matrix is 0
+which(x==0, arr.ind = T)
+#arr.ind = T tells which row and column is 0
+```
+
+
+Remove the genes with 0 expression
+```{r}
+zero.vals <- which(meancounts[,1:2]==0, arr.ind=TRUE)
+
+to.rm <- unique(zero.vals[,1])
+mycounts <- meancounts[-to.rm,]
+head(mycounts)
+```
+
+A common threshold used for calling something differentially expressed is a log2(FoldChange) of greater than 2 or less than -2. Let’s filter the dataset both ways to see how many genes are up or down-regulated.
+```{r}
+up.ind <- mycounts$log2fc > 2
+down.ind <- mycounts$log2fc < (-2)
+```
+
+Determine how many genes are up or down regulated
+```{r}
+paste("Up:", sum(up.ind))
+paste("Down:", sum(down.ind))
+```
+
+## Adding annotation data
+```{r}
+anno <- read.csv("annotables_grch38.csv")
+head(anno)
+```
+
+Use the merge function
+Merge the annotation data with our mycounts data
+```{r}
+results <- merge(mycounts, anno, by.x="row.names", by.y="ensgene")
+head(results)
+```
+
+Using Bioconductor's annotation packagse to help with mapping
+```{r}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+#download organism annotation package org for homo sapiens "Hs"
+#organized as AnnotationDbi database package "db"
+#using Entrez Gene IDs "eg" as primary key
+
+columns(org.Hs.eg.db)
+
+mycounts$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(mycounts),
+                     column="SYMBOL",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+head(mycounts)
+```
+
+## DESeq2 analysis
+DESeq2 is an R package for analyzing count-based NGS data
+```{r}
+library(DESeq2)
+citation("DESeq2")
+```
+
+Create design formula
+```{r}
+dds <- DESeqDataSetFromMatrix(countData=counts, 
+                              colData=metadata, 
+                              design=~dex, 
+                              tidy=TRUE)
+dds
+```
+
+Run DESeq
+```{r}
+dds <- DESeq(dds)
+```
+
+See results
+```{r}
+res <- results(dds)
+res
+```
+
+Get summary of results
+```{r}
+summary(res)
+```
+
+Order results table by smallest p value
+```{r}
+resOrdered <- res[order(res$pvalue),]
+```
+
+Adjust p value cut off
+```{r}
+res05 <- results(dds, alpha=0.05)
+summary(res05)
+```
+
+The more generic way to access the actual subset of the data.frame passing a threshold like this is with the subset() function
+```{r}
+resSig05 <- subset(as.data.frame(res), padj < 0.05)
+nrow(resSig05)
+```
+
+Find how many are significant with an adjusted p-val < 0.01
+```{r}
+resSig01 <- subset(as.data.frame(res), padj < 0.01)
+nrow(resSig01)
+
+head(resSig01)
+```
+
+Using either the previously generated anno object (annotations from the file annotables_grch38.csv file) or the mapIds() function (from the AnnotationDbi package) add annotation to your res01 results data.frame.
+```{r}
+columns(org.Hs.eg.db)
+
+resSig01$symbol <- mapIds(org.Hs.eg.db,
+                keys=row.names(resSig01),
+                column="SYMBOL",
+                keytype="ENSEMBL",
+                multiVals="first")
+
+resSig01$entrez <- mapIds(org.Hs.eg.db,
+                keys=row.names(resSig01),
+                column="ENTREZID",
+                keytype="ENSEMBL",
+                multiVals="first")
+
+resSig01$uniprot <- mapIds(org.Hs.eg.db,
+                keys=row.names(resSig01),
+                column="UNIPROT",
+                keytype="ENSEMBL",
+                multiVals="first")
+```
+
+Arrange and view results by adjusted p-value
+```{r}
+ord <- order( resSig01$padj )
+head(resSig01[ord,])
+```
+
+Write to csv file
+```{r}
+write.csv(resSig01[ord,], "signif01_results.csv")
+```
+
+
+## Data Visualization
+```{r}
+#see gene ID for CRISPLD2
+i <- grep("CRISPLD2", resSig01$symbol)
+resSig01[i,]
+```
+
+```{r}
+rownames(resSig01[i,])
+```
+
+Plot the counts, intgroup means interesting group, variable is the "dex" column
+```{r}
+plotCounts(dds, gene="ENSG00000103196", intgroup="dex")
+```
+
+Return the data
+```{r}
+d <- plotCounts(dds, gene="ENSG00000103196", intgroup="dex", returnData=TRUE)
+head(d)
+d
+```
+
+Plot with boxplot
+```{r}
+boxplot(count~dex, data=d)
+```
+
+Plot with ggplot2
+```{r}
+library(ggplot2)
+ggplot(d, aes(dex, count)) + 
+  geom_boxplot(aes(fill=dex)) + 
+  scale_y_log10() + 
+  ggtitle("CRISPLD2")
+```
+
+To see more plot examples, see 
+https://bioboot.github.io/bggn213_S18/class-material/lecture14-BGGN213_W18-lab/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
